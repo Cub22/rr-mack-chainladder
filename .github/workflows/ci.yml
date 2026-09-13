@@ -1,3 +1,4 @@
+﻿@'
 name: verify
 
 on:
@@ -8,18 +9,18 @@ on:
 
 jobs:
   python-only:
-    # Fast feedback: the tests that do not need R.
+    # Only 3.12 is tested: requirements.txt pins the exact versions the report
+    # was produced with, and those pins do not resolve on 3.10. The package
+    # itself declares looser bounds in pyproject.toml and should work on
+    # earlier versions with earlier numpy/pandas, but that is not claimed here
+    # because it is not tested.
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.10", "3.12"]
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
           cache: pip
 
       - name: Install
@@ -41,12 +42,17 @@ jobs:
       - uses: r-lib/actions/setup-r@v2
         with:
           r-version: "4.4.1"
+          # Serves precompiled Linux binaries, so ChainLadder and its
+          # dependencies install in under a minute instead of compiling.
           use-public-rspm: true
 
-      - uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          packages: |
-            cran::ChainLadder
+      - name: Install ChainLadder
+        # Installed directly rather than through setup-r-dependencies, which
+        # expects an R package DESCRIPTION in the repository root; this project
+        # is a Python package with one R script in it.
+        run: |
+          Rscript -e 'install.packages("ChainLadder")'
+          Rscript -e 'stopifnot(requireNamespace("ChainLadder", quietly = TRUE)); cat("ChainLadder", as.character(packageVersion("ChainLadder")), "\n")'
 
       - uses: actions/setup-python@v5
         with:
@@ -84,3 +90,4 @@ jobs:
         with:
           name: reference-output
           path: reference/generated
+          if-no-files-found: warn
