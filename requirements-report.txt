@@ -1,0 +1,9 @@
+# Extra packages needed only to render report/report.qmd with Quarto.
+# Left unpinned deliberately: the Jupyter stack resolves a dozen transitive
+# packages and a hand-written pin set here would be a guess. If you need the
+# report itself to be byte-reproducible, run `pip freeze > report/frozen.txt`
+# after a successful render and commit that.
+-r requirements.txt
+jupyter
+nbclient
+nbformat

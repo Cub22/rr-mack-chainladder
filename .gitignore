@@ -1,0 +1,24 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+.venv/
+env/
+
+# Reference output is regenerated, never committed - see reference/README.md
+reference/generated/
+
+# Quarto and report output
+report/*.html
+report/*.pdf
+report/*_files/
+report/.quarto/
+out/
+
+# R
+.Rhistory
+.RData
+renv/library/
+renv/staging/

@@ -1,0 +1,47 @@
+PYTHON ?= python3
+RSCRIPT ?= Rscript
+export PYTHONPATH := src
+
+.PHONY: help install reference test verify run report docker-build docker-verify clean
+
+help:
+	@echo "install        install the package and its dependencies"
+	@echo "reference      run ChainLadder in R and write reference/generated/"
+	@echo "test           run the Python test suite"
+	@echo "verify         reference + test, and report skipped tests"
+	@echo "run            run the estimate on data/raa.csv"
+	@echo "report         render report/report.qmd"
+	@echo "docker-build   build the container"
+	@echo "docker-verify  run the full check inside the container"
+
+install:
+	$(PYTHON) -m pip install -r requirements.txt
+	$(PYTHON) -m pip install -e . --no-deps
+
+reference:
+	$(RSCRIPT) R/export_reference.R reference/generated
+
+test:
+	$(PYTHON) -m pytest tests
+
+verify: reference test
+	@echo
+	@echo "If any test above was skipped, the R comparison did not run."
+
+run:
+	$(PYTHON) -m mackpy data/raa.csv --out out/raa_byorigin.csv \
+		--full-triangle out/raa_full_triangle.csv
+
+report:
+	quarto render report/report.qmd
+
+docker-build:
+	docker build -t mackpy:latest .
+
+docker-verify: docker-build
+	docker run --rm mackpy:latest
+
+clean:
+	rm -rf out report/*.html report/*.pdf report/*_files reference/generated
+	find . -name __pycache__ -type d -prune -exec rm -rf {} +
+	rm -rf .pytest_cache

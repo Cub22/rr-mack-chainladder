@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mackpy"
+version = "0.1.0"
+description = "Mack's distribution-free chain ladder, reimplemented in Python and checked against R's ChainLadder"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Jakub Ryłow", email = "jr430559@students.mimuw.edu.pl" }]
+dependencies = ["numpy>=1.24", "pandas>=2.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "matplotlib>=3.7"]
+
+[project.scripts]
+mackpy = "mackpy.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

@@ -1,0 +1,7 @@
+# Runtime and test dependencies, pinned to the versions the results in
+# report/report.qmd were produced with. Regenerate with
+#   pip freeze | grep -Ei '^(numpy|pandas|matplotlib|pytest)=='
+numpy==2.4.4
+pandas==3.0.2
+matplotlib==3.10.8
+pytest==9.1.1
