@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from mackpy import mack_chain_ladder, read_triangle_csv
+from mackpy import mack_chain_ladder, read_triangle_csv, simulate_triangle
 from mackpy.mack import _extrapolate_sigma_loglinear, _loglinear_fit
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -116,9 +116,7 @@ def test_both_spellings_are_accepted(raa):
 
 @pytest.mark.parametrize("n", [5, 8, 12])
 def test_log_linear_keeps_the_mse_decomposition(n):
-    from tests.test_properties import make_triangle
-
-    res = mack_chain_ladder(make_triangle(n), est_sigma="log-linear")
+    res = mack_chain_ladder(simulate_triangle(n), est_sigma="log-linear")
     np.testing.assert_allclose(
         res.mack_se**2, res.process_risk**2 + res.parameter_risk**2, rtol=1e-10
     )

@@ -11,21 +11,17 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from mackpy import cum_to_incr, incr_to_cum, mack_chain_ladder, read_triangle_csv
+from mackpy import (
+    cum_to_incr,
+    deterministic_triangle,
+    incr_to_cum,
+    mack_chain_ladder,
+    read_triangle_csv,
+    simulate_triangle,
+)
 from mackpy.mack import _extrapolate_sigma_mack
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def make_triangle(n: int, seed: int = 0) -> np.ndarray:
-    """A random but well-behaved cumulative triangle of size ``n``."""
-    rng = np.random.default_rng(seed)
-    incr = rng.gamma(shape=4.0, scale=250.0, size=(n, n))
-    incr *= np.linspace(1.0, 0.05, n)[None, :]
-    cum = np.cumsum(incr, axis=1)
-    for i in range(n):
-        cum[i, n - i :] = np.nan
-    return cum
 
 
 @pytest.fixture(scope="module")
@@ -35,7 +31,7 @@ def raa():
 
 @pytest.mark.parametrize("n", [4, 5, 7, 10, 15])
 def test_projection_follows_the_factors(n):
-    tri = make_triangle(n)
+    tri = simulate_triangle(n)
     res = mack_chain_ladder(tri)
     for i in range(n):
         last = int(np.flatnonzero(~np.isnan(tri[i]))[-1])
@@ -45,7 +41,7 @@ def test_projection_follows_the_factors(n):
 
 @pytest.mark.parametrize("n", [4, 5, 7, 10, 15])
 def test_observed_part_is_untouched(n):
-    tri = make_triangle(n)
+    tri = simulate_triangle(n)
     res = mack_chain_ladder(tri)
     observed = ~np.isnan(tri)
     np.testing.assert_allclose(res.full_triangle[observed], tri[observed], rtol=0)
@@ -54,7 +50,7 @@ def test_observed_part_is_untouched(n):
 @pytest.mark.parametrize("n", [4, 5, 7, 10, 15])
 def test_mse_decomposes(n):
     """Mack.S.E^2 = process risk^2 + parameter risk^2, by origin."""
-    tri = make_triangle(n)
+    tri = simulate_triangle(n)
     res = mack_chain_ladder(tri)
     np.testing.assert_allclose(
         res.mack_se**2,
@@ -65,7 +61,7 @@ def test_mse_decomposes(n):
 
 @pytest.mark.parametrize("n", [4, 5, 7, 10, 15])
 def test_total_decomposes(n):
-    tri = make_triangle(n)
+    tri = simulate_triangle(n)
     res = mack_chain_ladder(tri)
     assert res.total_mack_se**2 == pytest.approx(
         res.total_process_risk**2 + res.total_parameter_risk**2, rel=1e-10
@@ -84,7 +80,7 @@ def test_closed_form_mse_agrees_with_the_recursion(n, alpha):
     point of the test. With alpha = 1 this is the form printed in the 1993
     paper; the exponent generalises it to the other two weightings.
     """
-    tri = make_triangle(n)
+    tri = simulate_triangle(n)
     res = mack_chain_ladder(tri, alpha=alpha)
     full, f, sigma2, s = res.full_triangle, res.f, res.sigma**2, res.s
     for i in range(n):
@@ -114,7 +110,7 @@ def test_scale_equivariance(n):
     Mack's model is scale invariant in this sense: sigma_k^2 scales with c and
     so the standard error scales linearly, not quadratically.
     """
-    tri = make_triangle(n)
+    tri = simulate_triangle(n)
     c = 1000.0
     a = mack_chain_ladder(tri)
     b = mack_chain_ladder(tri * c)
@@ -126,15 +122,9 @@ def test_scale_equivariance(n):
 
 def test_deterministic_triangle_has_zero_process_risk():
     """If every link ratio in a column is identical, sigma_k is zero."""
-    n = 6
     f_true = np.array([2.0, 1.5, 1.2, 1.1, 1.05])
-    cum = np.zeros((n, n))
-    cum[:, 0] = np.arange(1, n + 1) * 100.0
-    for k in range(n - 1):
-        cum[:, k + 1] = cum[:, k] * f_true[k]
-    for i in range(n):
-        cum[i, n - i :] = np.nan
-    res = mack_chain_ladder(cum)
+    n = f_true.size + 1
+    res = mack_chain_ladder(deterministic_triangle(f_true))
     np.testing.assert_allclose(res.f, f_true, rtol=1e-12)
     np.testing.assert_allclose(res.sigma, np.zeros(n - 1), atol=1e-9)
     np.testing.assert_allclose(res.mack_se, np.zeros(n), atol=1e-9)

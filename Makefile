@@ -22,11 +22,14 @@ install:
 reference:
 	$(RSCRIPT) R/export_reference.R reference/generated
 
+# Deliberately the bare command rather than `python -m pytest`: the module
+# form puts the working directory on sys.path, which hides an import that
+# only works locally. CI runs the bare command, so this does too.
 test:
-	$(PYTHON) -m pytest tests -m "not informational"
+	pytest tests -m "not informational"
 
 test-informational:
-	$(PYTHON) -m pytest tests -m informational || true
+	pytest tests -m informational || true
 
 verify: reference test
 	@echo
