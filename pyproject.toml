@@ -24,3 +24,6 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+markers = [
+    "informational: compared against R and reported, but not allowed to fail the build",
+]

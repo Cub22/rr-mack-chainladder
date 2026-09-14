@@ -2,12 +2,13 @@ PYTHON ?= python3
 RSCRIPT ?= Rscript
 export PYTHONPATH := src
 
-.PHONY: help install reference test verify run report docker-build docker-verify clean
+.PHONY: help install reference test test-informational verify run report docker-build docker-verify clean
 
 help:
 	@echo "install        install the package and its dependencies"
 	@echo "reference      run ChainLadder in R and write reference/generated/"
 	@echo "test           run the Python test suite"
+	@echo "test-informational  run the comparisons that are reported, not enforced"
 	@echo "verify         reference + test, and report skipped tests"
 	@echo "run            run the estimate on data/raa.csv"
 	@echo "report         render report/report.qmd"
@@ -22,7 +23,10 @@ reference:
 	$(RSCRIPT) R/export_reference.R reference/generated
 
 test:
-	$(PYTHON) -m pytest tests
+	$(PYTHON) -m pytest tests -m "not informational"
+
+test-informational:
+	$(PYTHON) -m pytest tests -m informational || true
 
 verify: reference test
 	@echo

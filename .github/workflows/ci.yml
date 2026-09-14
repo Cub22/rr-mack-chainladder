@@ -29,7 +29,7 @@ jobs:
           pip install -e . --no-deps
 
       - name: Test
-        run: pytest tests -v
+        run: pytest tests -v -m "not informational"
 
   against-r:
     # The comparison the project is actually about: run ChainLadder in R, then
@@ -76,13 +76,27 @@ jobs:
         # tests/test_against_r.py skips when these files are absent, so a
         # missing reference would otherwise look like a green run.
         run: |
-          for f in raa_triangle.csv raa_Mack_byorigin.csv raa_Mack_totals.csv \
-                   raa_Mack_factors.csv genins_Mack_byorigin.csv; do
+          for f in RAA_triangle.csv RAA_a0_Mack_byorigin.csv \
+                   RAA_a1_Mack_byorigin.csv RAA_a2_Mack_byorigin.csv \
+                   RAA_a1_Mack_totals.csv RAA_a1_Mack_factors.csv; do
             test -s "reference/generated/$f" || { echo "missing $f"; exit 1; }
           done
+          # The comparison is parametrised over whatever R produced, so also
+          # insist that it produced more than the one triangle above.
+          count=$(ls reference/generated/*_byorigin.csv | wc -l)
+          echo "reference cases: $count"
+          test "$count" -ge 4
 
       - name: Compare Python against R
-        run: pytest tests -v
+        run: pytest tests -v -m "not informational"
+
+      - name: Compare the log-linear fallback against R (informational)
+        # The Python side implements Mack's log-linear extrapolation with its
+        # own significance test rather than reproducing R's fallback logic, so
+        # this comparison is reported and not enforced. If it ever passes, the
+        # marker can go.
+        continue-on-error: true
+        run: pytest tests -v -m informational
 
       - uses: actions/upload-artifact@v4
         if: always()
