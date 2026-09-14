@@ -11,12 +11,14 @@ Bulletin* 29(2), 361–366.
 `ChainLadder`, on the sample run-off triangles `RAA` and `GenIns`.
 
 **What is here.** The method reimplemented in Python from the formulae
-(`src/mackpy/`), an R script that exports the reference numbers
-(`R/export_reference.R`), a test suite that compares the two at full double
-precision plus property tests that do not depend on R at all (`tests/`), a
-container pinning both environments (`Dockerfile`), a CI workflow that runs
-the whole comparison on every push (`.github/workflows/ci.yml`), and a Quarto
-report with the code visible (`report/report.qmd`).
+(`src/mackpy/`) — the full variance assumption with its exponent and weights,
+and the tail factor of the 1999 paper — an R script that exports the reference
+numbers (`R/export_reference.R`), a test suite that compares the two at full
+double precision plus property tests that do not depend on R at all
+(`tests/`), a container pinning both environments (`Dockerfile`), a CI
+workflow that runs the whole comparison on every push
+(`.github/workflows/ci.yml`), and a Quarto report with the code visible
+(`report/report.qmd`).
 
 ## Result
 
@@ -62,14 +64,16 @@ A single estimate from the command line:
 ```sh
 python -m mackpy data/raa.csv
 python -m mackpy data/raa.csv --est-sigma log-linear --out out/raa.csv
+python -m mackpy data/raa.csv --alpha 0 --tail 1.05 --tail-se 0.02
 ```
 
 ## Layout
 
 ```
 data/raa.csv                 RAA cumulative triangle (provenance in reference/README.md)
-src/mackpy/mack.py           the method: factors, sigma, projection, mse
+src/mackpy/mack.py           the method: factors, sigma, projection, mse, tail
 src/mackpy/triangle.py       triangle I/O, cumulative/incremental conversion
+src/mackpy/tdist.py          Student t tail, so scipy is not a dependency
 src/mackpy/cli.py            command line interface
 R/export_reference.R         runs ChainLadder, writes reference/generated/*.csv
 R/renv-setup.R               creates or restores a pinned R library
@@ -77,6 +81,10 @@ reference/                   published reference values, provenance, and notes
 tests/test_raa_published.py  against the vignette output (rounded, tol 0.1)
 tests/test_against_r.py      against locally generated R output (rtol 1e-8)
 tests/test_properties.py     properties that hold for any triangle, no R needed
+tests/test_alpha_weights.py  the three weightings, computed directly
+tests/test_tail.py           the tail factor and the uncertainty attached to it
+tests/test_loglinear.py      the sigma extrapolation and when it refuses
+tests/test_tdist.py          the t distribution helper against known values
 report/report.qmd            the report, code visible
 Dockerfile, Makefile         pinned environment and entry points
 ```
@@ -100,12 +108,18 @@ rather than the reserve number.
    through the `rocker/r-ver` tag, which fixes both the R version and the CRAN
    snapshot that `install.packages()` reads.
 
-3. **Scope.** Only the case `alpha = 1`, `weights = 1`, no tail factor is
-   implemented — the R default. `est_sigma="mack"` is the setting under which
-   agreement with R is claimed and tested; `est_sigma="log-linear"` implements
-   the plain log-linear extrapolation and not R's significance check and
-   fallback, so it is excluded from the comparison tests on purpose rather
-   than left to fail quietly.
+3. **Scope, and what is actually claimed.** The variance assumption is
+   implemented in full: `alpha` ∈ {0, 1, 2} and per-cell `weights`, with a
+   tail factor that can carry its own process and estimation uncertainty.
+   Agreement with R is asserted for every available triangle at all three
+   alphas with `est_sigma="mack"`. Two things are deliberately *not* claimed.
+   The tail factor is compared against no reference, because how R derives
+   `tail.se` and `tail.sigma` from a given tail is its own choice rather than
+   something the papers fix; the tests pin it against exact analytic
+   properties instead. And `est_sigma="log-linear"` applies its own
+   significance test for the slope rather than reproducing R's fallback logic,
+   so those comparisons run as `informational` — reported on every CI run,
+   allowed to fail, never silently skipped.
 
 ## Licence
 

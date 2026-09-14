@@ -194,6 +194,36 @@ else:
     )
 ```
 
+# What the tail does
+
+A tail factor is the least observable part of the exercise and the one that
+moves the answer most, so it is worth seeing the sensitivity rather than
+picking a value and moving on.
+
+```{python}
+#| label: tail-sensitivity
+rows = []
+for t in [1.00, 1.02, 1.05, 1.10]:
+    for se in [0.0, 0.02]:
+        r = mack_chain_ladder(triangle.to_numpy(), tail=t, tail_se=se)
+        rows.append({
+            "tail": t,
+            "tail s.e.": se,
+            "IBNR": r.total_ibnr,
+            "Mack S.E.": r.total_mack_se,
+            "CV": r.total_mack_se / r.total_ibnr,
+        })
+pd.DataFrame(rows).round(3)
+```
+
+A five per cent tail adds 10,656 to the reserve — a fifth of the entire
+chain ladder estimate of 52,135 — on no evidence from the triangle at all.
+Notice also that the coefficient of variation *falls*, from 0.516 to 0.450,
+when the tail is treated as known: the reserve grows and the stated
+uncertainty grows by less, so the exercise looks more precise than before. That
+is an artefact of assuming the tail, not a finding, and it is the reason
+`tail_se` exists.
+
 # A picture of the uncertainty
 
 ```{python}
@@ -250,12 +280,21 @@ $$
 $$
 
 That rule is implemented here and is the setting under which agreement is
-claimed. The R default is instead a log-linear extrapolation which also
-inspects the significance of the fitted slope and falls back to Mack's rule if
-the fit is poor; the Python `est_sigma="log-linear"` option implements only
-the plain extrapolation and is deliberately excluded from the comparison
-tests. Reproducing the fallback logic would mean reproducing a particular
-implementation rather than a published method.
+claimed. The alternative is to extrapolate the decay of $\log\hat\sigma_k$ by
+least squares, which is only defensible if the decay is real: the
+implementation therefore tests the slope against zero and falls back to Mack's
+rule when it is not significantly negative at five per cent. On RAA the slope
+is significant ($p \approx 0.0004$) and the extrapolated $\hat\sigma_9$ is
+below what the minimum rule gives, which lowers the total standard error from
+26,909.0 to 26,880.7 — a small difference resting entirely on one unobservable
+quantity.
+
+R's `est.sigma = "log-linear"` follows the same idea with its own criterion for
+when to fall back. Reproducing that criterion would mean reproducing a
+particular implementation rather than a published method, so the comparison
+against R for this setting runs as an *informational* test: it is executed and
+reported on every CI run, and it is allowed to fail. That is a different thing
+from skipping it, which would hide the disagreement rather than record it.
 
 **The recursive and the closed form.** The 1993 paper gives a closed-form mean
 squared error; the 1999 paper gives a recursion that also accommodates a tail
@@ -274,10 +313,25 @@ and separately asserts that it lies strictly between the root sum of squares
 and the plain sum of the individual standard errors.
 
 **Weights and $\alpha$.** Mack's variance assumption is
-$\sigma_k^2/(w_{ik}C_{ik}^\alpha)$ with $\alpha \in \{0,1,2\}$. Only
-$\alpha=1$, $w \equiv 1$ is implemented, which is the R default. A triangle
-fitted in R with non-trivial `weights` will not be reproduced by this code,
-and the test suite does not pretend otherwise.
+$\sigma_k^2/(w_{ik}C_{ik}^\alpha)$ with $\alpha \in \{0,1,2\}$, the three
+values corresponding to the simple average of the link ratios, the volume
+weighted estimator, and the ordinary regression estimator. All three are
+implemented, along with per-cell weights, and the comparison against R runs at
+each of them on every triangle the installed package provides. This is where
+an off-by-one in the weighting shows up: at $\alpha=1$ the factor and its
+variance estimator share a denominator and several plausible misreadings
+coincide, while at $\alpha=0$ and $2$ they come apart.
+
+**The tail.** A tail factor is one further development period, and that is
+literally how it is implemented: the factor is appended to $\hat f$, its
+uncertainty to $\hat\sigma$ and to the standard error of the factor, and the
+recursion runs unchanged. The consequences are then exact rather than
+approximate — a tail of known size multiplies every ultimate and every
+standard error by itself, and the oldest origin period, which has no error at
+all without a tail, acquires one that comes from the tail alone. Nothing is
+claimed here against R, because how a given tail factor should be turned into
+`tail.se` and `tail.sigma` is an implementation's choice and not something the
+papers settle.
 
 # Environment
 
