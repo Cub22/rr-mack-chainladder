@@ -73,24 +73,26 @@ def test_total_decomposes(n):
 
 
 @pytest.mark.parametrize("n", [5, 8, 12])
-def test_closed_form_mse_agrees_with_the_recursion(n):
+@pytest.mark.parametrize("alpha", [0, 1, 2])
+def test_closed_form_mse_agrees_with_the_recursion(n, alpha):
     """Cross-check the recursion against Mack's (1993) closed form.
 
-    mse(R_i) = C_{i,n}^2 * sum_k (sigma_k^2 / f_k^2) * (1/C_{i,k} + 1/S_k)
+    mse(R_i) = C_{i,n}^2 * sum_k (sigma_k^2 / f_k^2) * (1/C_{i,k}^alpha + 1/S_k)
 
     The implementation uses the recursive formulation of Mack (1999); the two
     must coincide, and computing the closed form here independently is the
-    point of the test.
+    point of the test. With alpha = 1 this is the form printed in the 1993
+    paper; the exponent generalises it to the other two weightings.
     """
     tri = make_triangle(n)
-    res = mack_chain_ladder(tri)
+    res = mack_chain_ladder(tri, alpha=alpha)
     full, f, sigma2, s = res.full_triangle, res.f, res.sigma**2, res.s
     for i in range(n):
         last = int(np.flatnonzero(~np.isnan(tri[i]))[-1])
         if last >= n - 1:
             continue
         acc = sum(
-            (sigma2[k] / f[k] ** 2) * (1.0 / full[i, k] + 1.0 / s[k])
+            (sigma2[k] / f[k] ** 2) * (1.0 / full[i, k] ** alpha + 1.0 / s[k])
             for k in range(last, n - 1)
         )
         expected = full[i, n - 1] ** 2 * acc

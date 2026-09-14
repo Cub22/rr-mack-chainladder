@@ -2,6 +2,7 @@
 
     python -m mackpy data/raa.csv
     python -m mackpy data/raa.csv --est-sigma log-linear --out out/raa.csv
+    python -m mackpy data/raa.csv --alpha 0 --tail 1.05 --tail-se 0.02
 """
 
 from __future__ import annotations
@@ -29,6 +30,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="how to estimate sigma for the last development period",
     )
     parser.add_argument(
+        "--alpha",
+        type=int,
+        default=1,
+        choices=[0, 1, 2],
+        help="exponent of the variance assumption (1 = volume weighted)",
+    )
+    parser.add_argument(
+        "--tail", type=float, default=1.0, help="tail factor beyond the last period"
+    )
+    parser.add_argument(
+        "--tail-se",
+        type=float,
+        default=0.0,
+        help="standard error of the tail factor (0 treats it as known)",
+    )
+    parser.add_argument(
         "--out", type=Path, default=None, help="write the by-origin table here"
     )
     parser.add_argument(
@@ -45,14 +62,25 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
     tri = read_triangle_csv(args.triangle)
-    res = mack_chain_ladder(tri.to_numpy(), est_sigma=args.est_sigma)
+    res = mack_chain_ladder(
+        tri.to_numpy(),
+        est_sigma=args.est_sigma,
+        alpha=args.alpha,
+        tail=args.tail,
+        tail_se=args.tail_se,
+    )
 
     byorigin = res.summary()
     byorigin.index = tri.index
     totals = pd.Series(res.totals(), name="Totals")
 
     pd.set_option("display.width", 160)
-    print(f"Mack chain ladder, est.sigma = {args.est_sigma}\n")
+    header = f"Mack chain ladder, est.sigma = {args.est_sigma}, alpha = {args.alpha}"
+    if res.has_tail:
+        header += f", tail = {args.tail}"
+        if args.tail_se:
+            header += f" (s.e. {args.tail_se})"
+    print(header + "\n")
     print(byorigin.round(args.digits).to_string())
     print("\nTotals")
     print(totals.round(args.digits).to_string())
